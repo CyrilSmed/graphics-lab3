@@ -156,25 +156,12 @@ glm::mat4* PipelineHandler::getTransformationMatrix()
         m_camera.targetVec,
         m_camera.upVec);
 
-    m_transformation = projectionTransformation *
-        cameraRotation *
+    m_transformation = //projectionTransformation *
+        //cameraRotation *
         scaleTransformation *
         rotationTransformation *
-        translationTransformation *
-        cameraTranslation;
-
-    float matrix[4][4] = { {0, 1, 2, 3},
-                           {4, 5, 6, 7},  
-                           {8, 9, 10, 11}, 
-                           {12, 13, 14, 15} };
-
-    for (int x = 0; x < 4; x++)
-    {
-        for (int y = 0; y < 4; y++)
-        {
-            matrix[x][y] = cameraRotation[x][y];
-        }
-    }
+        translationTransformation;
+        //cameraTranslation;
 
     return &m_transformation;
 }

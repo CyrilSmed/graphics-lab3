@@ -9,11 +9,43 @@ GLuint VBO;
 GLuint IBO;
 GLuint globalLocation;
 GLuint globalSampler;
+GLuint dirLightColor;
+GLuint dirLightAmbientIntensity;
+
+struct DirectionLight
+{
+    glm::vec3 Color;
+    float AmbientIntensity;
+};
+DirectionLight dirLight = { {0.9f, 0.9f, 0.9f}, 0.8f };
+
 
 TextureHandler* texture = NULL;
 
-const GLchar pVS[] = "#version 330\n layout (location = 0) in vec3 Position; uniform mat4 gWorld; void main() {gl_Position = gWorld * vec4(Position, 1.0);}";
-const GLchar pFS[] = "#version 330\n out vec4 FragColor; void main() {FragColor = vec4(0.8, 0.8, 0.8, 1.0);}";
+const GLchar pVS[] = "\n\
+#version 330\n\
+layout (location = 0) in vec3 Position; \n\
+layout (location = 1) in vec2 TexCoord; \n\
+uniform mat4 gWorld; \n\
+out vec2 TexCoord0;  \n\
+void main() { \n\
+	gl_Position = gWorld * vec4(Position, 1.0); \n\
+	TexCoord0 = TexCoord;\n\
+}";
+const GLchar pFS[] = "\n\
+#version 330\n\
+in vec2 TexCoord0; \n\
+out vec4 FragColor; \n\
+struct DirectionalLight \n\
+{ \n\
+    vec3 Color; \n\
+    float AmbientIntensity; \n\
+};\n\
+uniform DirectionalLight gDirectionalLight; \n\
+uniform sampler2D gSampler;\n\
+void main() {\n\
+	FragColor = texture2D(gSampler, TexCoord0.xy) * vec4(gDirectionalLight.Color, 1.0f) * gDirectionalLight.AmbientIntensity; \n\
+}";
 
 const float WINDOW_WIDTH = 1000;
 const float WINDOW_HEIGHT = 800;
@@ -37,9 +69,9 @@ static void renderSceneCB()
 
     PipelineHandler pipeline;
 
-    //pipeline.setPosition(cos(Scale) * 0.25f, sin(Scale) * 0.065f, sin(Scale * 50) * 0.02f);
-    //pipeline.setScale(sin(Scale)*0.2f + 1.0f, cos(Scale) * 0.2f + 1.0f, 1.0f);
-    //pipeline.setRotation((int)(Scale * 100) % 360, 0, 0);
+    //pipeline.setPosition(0, 0, 1.0f);
+    pipeline.setScale(0.4f, 0.4f, 0.4f);
+    pipeline.setRotation(sinf(Scale) * 360, 0.0f, 0.0f);
     pipeline.setPerspective(
         60.0f,
         WINDOW_WIDTH,
@@ -51,6 +83,10 @@ static void renderSceneCB()
         glm::vec3({ 0.0f,1.0f ,0.0f }));
 
     glUniformMatrix4fv(globalLocation, 1, GL_TRUE, (const GLfloat*)pipeline.getTransformationMatrix());
+    
+    // Lighting
+    glUniform3f(dirLightColor, dirLight.Color.x, dirLight.Color.y, dirLight.Color.z);
+    glUniform1f(dirLightAmbientIntensity, dirLight.AmbientIntensity);
 
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
@@ -59,7 +95,6 @@ static void renderSceneCB()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), 0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (const GLvoid*)12);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-
     texture->Bind(GL_TEXTURE0);
     glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
 
@@ -122,25 +157,13 @@ int main(int argc, char** argv)
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    //glm::vec4 vecs[9] = {
-    //    {0.3f, 0.3f, 11.5f, 1.0f},
-    //    {0.5f, 0.5f, 12.0f, 1.0f},
-    //    {-0.1f, 0.5f, 12.5f, 1.0f},
-
-    //    {0.0f, -0.25f, 11.0f, 1.0f},
-    //    {0.0f, 0.25f, 12.0f, 1.0f},
-    //    {0.0f, -0.25f, 13.0f, 1.0f},
-
-    //    {-0.3f, -0.3f, 12.5f, 1.0f},
-    //    {-0.5f, -0.5f, 12.0f, 1.0f},
-    //    {0.1f, -0.5f, 11.5f, 1.0f}
-    //};
+    Magick::InitializeMagick(nullptr);
 
     vertex input[4] = {
         vertex(glm::vec3 {-1.0f, -1.0f, 0.5773f}, glm::vec2 {0.0f, 0.0f}),
-        vertex(glm::vec3 {0.0f, -1.0f, -1.1547}, glm::vec2 {0.0f, 0.0f}),
+        vertex(glm::vec3 {0.0f, -1.0f, -1.1547}, glm::vec2 {0.5f, 0.0f}),
         vertex(glm::vec3 {1.0f, -1.0f, 0.5773f}, glm::vec2 {1.0f, 0.0f}),
-        vertex(glm::vec3 {0.0f, 1.0f, 0.0f}, glm::vec2 {0.0f, 1.0f}),
+        vertex(glm::vec3 {0.0f, 1.0f, 0.0f}, glm::vec2 {0.5f, 1.0f}),
     };
 
     glGenBuffers(1, &VBO);
@@ -162,19 +185,45 @@ int main(int argc, char** argv)
     createShader(&shaderProgram, GL_FRAGMENT_SHADER, pFS);
 
     glLinkProgram(shaderProgram);
-    glUseProgram(shaderProgram);
+    GLint Success;
+    GLchar* ErrorLog = nullptr;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &Success);
+    if (Success == 0) {
+        glGetProgramInfoLog(shaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
+        fprintf(stderr, "Error linking shader program: '%s'\n", ErrorLog);
+        return false;
+    }
 
-    globalLocation = glGetUniformLocation(shaderProgram, "gWVP");
+    glValidateProgram(shaderProgram);
+    glGetProgramiv(shaderProgram, GL_VALIDATE_STATUS, &Success);
+    if (!Success) {
+        glGetProgramInfoLog(shaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
+        fprintf(stderr, "Invalid shader program: '%s'\n", ErrorLog);
+        exit(1);
+    }
+
+    globalLocation = glGetUniformLocation(shaderProgram, "gWorld");
     globalSampler = glGetUniformLocation(shaderProgram, "gSampler");
+    dirLightColor = glGetUniformLocation(shaderProgram, "gDirectionalLight.Color");
+    dirLightAmbientIntensity = glGetUniformLocation(shaderProgram, "gDirectionalLight.AmbientIntensity");
+
+    glUseProgram(shaderProgram);
 
     glUniform1i(globalSampler, 0);
     Magick::InitializeMagick(nullptr);
+
     texture = new TextureHandler(GL_TEXTURE_2D, "Content/test.png");
 
     if (!texture->Load()) {
         std::cout << "error";
         return 1;
     }
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClearDepth(1.0f);
+    glFrontFace(GL_CW);
+    glCullFace(GL_BACK);
+    glDisable(GL_DEPTH_TEST);
 
     glutMainLoop();
     return 0;

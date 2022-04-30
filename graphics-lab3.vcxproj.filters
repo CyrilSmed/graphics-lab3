@@ -21,7 +21,7 @@
     <ClCompile Include="PipelineHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TextureHandler.cpp">
+    <ClCompile Include="LightHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -30,6 +30,9 @@
       <Filter>Resource Files</Filter>
     </ClInclude>
     <ClInclude Include="TextureHandler.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LightHandler.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>

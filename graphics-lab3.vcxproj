@@ -139,11 +139,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="LightHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PipelineHandler.cpp" />
-    <ClCompile Include="TextureHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="LightHandler.h" />
     <ClInclude Include="PipelineHandler.h" />
     <ClInclude Include="TextureHandler.h" />
   </ItemGroup>
