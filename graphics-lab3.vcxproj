@@ -141,9 +141,11 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PipelineHandler.cpp" />
+    <ClCompile Include="TextureHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PipelineHandler.h" />
+    <ClInclude Include="TextureHandler.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -21,9 +21,15 @@
     <ClCompile Include="PipelineHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TextureHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PipelineHandler.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureHandler.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>
