@@ -71,7 +71,7 @@ static void renderSceneCB()
 
     //pipeline.setPosition(0, 0, 1.0f);
     pipeline.setScale(0.4f, 0.4f, 0.4f);
-    pipeline.setRotation(sinf(Scale) * 360, 0.0f, 0.0f);
+    pipeline.setRotation(sinf(Scale) * 360, cosf(Scale) * 360, 0.0f);
     pipeline.setPerspective(
         60.0f,
         WINDOW_WIDTH,

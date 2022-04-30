@@ -69,9 +69,9 @@ glm::mat4 PipelineHandler::getRotationTransformation()
     };
 
     glm::mat4 rotationY = {
-        {cos(x),  0.0f,   -sin(x),  0.0f},
+        {cos(y),  0.0f,   -sin(y),  0.0f},
         {0.0f,    1.0f,   0.0f,     0.0f},
-        {sin(x),  0.0f,   cos(x),   0.0f},
+        {sin(y),  0.0f,   cos(y),   0.0f},
         {0.0f,    0.0f,   0.0f,     1.0f}
     };
 
