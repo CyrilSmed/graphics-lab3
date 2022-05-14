@@ -17,7 +17,7 @@ struct DirectionLight
     glm::vec3 Color;
     float AmbientIntensity;
 };
-DirectionLight dirLight = { {0.9f, 0.9f, 0.9f}, 0.8f };
+DirectionLight dirLight = { {0.9f, 0.9f, 1.0f}, 1.2f };
 
 
 TextureHandler* texture = NULL;
@@ -65,7 +65,7 @@ struct vertex {
 static void renderSceneCB()
 {
     glClear(GL_COLOR_BUFFER_BIT);
-    Scale += 0.001f;
+    Scale += 0.0005f;
 
     PipelineHandler pipeline;
 
