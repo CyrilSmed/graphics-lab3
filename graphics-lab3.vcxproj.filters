@@ -18,21 +18,60 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineHandler.cpp">
+    <ClCompile Include="lighting_technique.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LightHandler.cpp">
+    <ClCompile Include="camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="glut_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="technique.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="math_3d.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="PipelineHandler.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="TextureHandler.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="LightHandler.h">
+    <ClInclude Include="GLHandler.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="texture.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math_3d.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="util.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="technique.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pipeline.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lighting_technique.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="glut_backend.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="callbacks.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
   </ItemGroup>

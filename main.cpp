@@ -1,230 +1,272 @@
+#include <math.h>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
-#include <iostream>
-#include <glm/glm.hpp>
-#include "PipelineHandler.h"
-#include "TextureHandler.h"
 
-GLuint VBO;
-GLuint IBO;
-GLuint globalLocation;
-GLuint globalSampler;
-GLuint dirLightColor;
-GLuint dirLightAmbientIntensity;
+#include "pipeline.h"
+#include "camera.h"
+#include "texture.h"
+#include "lighting_technique.h"
+#include "glut_backend.h"
+#include "util.h"
 
-struct DirectionLight
+#define WINDOW_WIDTH  1280
+#define WINDOW_HEIGHT 1024
+
+struct Vertex
 {
-    glm::vec3 Color;
-    float AmbientIntensity;
-};
-DirectionLight dirLight = { {0.9f, 0.9f, 1.0f}, 1.2f };
+    Vector3f m_pos;
+    Vector2f m_tex;
+    Vector3f m_normal;
 
+    Vertex() {}
 
-TextureHandler* texture = NULL;
-
-const GLchar pVS[] = "\n\
-#version 330\n\
-layout (location = 0) in vec3 Position; \n\
-layout (location = 1) in vec2 TexCoord; \n\
-uniform mat4 gWorld; \n\
-out vec2 TexCoord0;  \n\
-void main() { \n\
-	gl_Position = gWorld * vec4(Position, 1.0); \n\
-	TexCoord0 = TexCoord;\n\
-}";
-const GLchar pFS[] = "\n\
-#version 330\n\
-in vec2 TexCoord0; \n\
-out vec4 FragColor; \n\
-struct DirectionalLight \n\
-{ \n\
-    vec3 Color; \n\
-    float AmbientIntensity; \n\
-};\n\
-uniform DirectionalLight gDirectionalLight; \n\
-uniform sampler2D gSampler;\n\
-void main() {\n\
-	FragColor = texture2D(gSampler, TexCoord0.xy) * vec4(gDirectionalLight.Color, 1.0f) * gDirectionalLight.AmbientIntensity; \n\
-}";
-
-const float WINDOW_WIDTH = 1000;
-const float WINDOW_HEIGHT = 800;
-
-float Scale = 0.0f;
-
-struct vertex {
-    glm::vec3 fst;
-    glm::vec2 snd;
-
-    vertex(glm::vec3 inp1, glm::vec2 inp2) {
-        fst = inp1;
-        snd = inp2;
+    Vertex(Vector3f pos, Vector2f tex)
+    {
+        m_pos = pos;
+        m_tex = tex;
+        m_normal = Vector3f(0.0f, 0.0f, 0.0f);
     }
 };
 
-static void renderSceneCB()
+class Main : public ICallbacks
 {
-    glClear(GL_COLOR_BUFFER_BIT);
-    Scale += 0.0005f;
+public:
 
-    PipelineHandler pipeline;
-
-    //pipeline.setPosition(0, 0, 1.0f);
-    pipeline.setScale(0.4f, 0.4f, 0.4f);
-    pipeline.setRotation(sinf(Scale) * 360, cosf(Scale) * 360, 0.0f);
-    pipeline.setPerspective(
-        60.0f,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        1.0f,
-        100.0f);
-    pipeline.setCamera(glm::vec3({ 0.0f,0.0f,0.0f }),
-        glm::vec3({ 0.8f,0.8f ,2.0f }),
-        glm::vec3({ 0.0f,1.0f ,0.0f }));
-
-    glUniformMatrix4fv(globalLocation, 1, GL_TRUE, (const GLfloat*)pipeline.getTransformationMatrix());
-    
-    // Lighting
-    glUniform3f(dirLightColor, dirLight.Color.x, dirLight.Color.y, dirLight.Color.z);
-    glUniform1f(dirLightAmbientIntensity, dirLight.AmbientIntensity);
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (const GLvoid*)12);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-    texture->Bind(GL_TEXTURE0);
-    glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-
-    glutSwapBuffers();
-}
-
-void createShader(GLuint* shaderprog, GLenum shaderType, const GLchar* shaderText)
-{
-    GLuint ShaderObj = glCreateShader(shaderType);
-    const GLchar* p[1];
-    p[0] = shaderText;
-    GLint Lengths[1];
-    Lengths[0] = strlen(shaderText);
-    glShaderSource(ShaderObj, 1, p, Lengths);
-
-    glCompileShader(ShaderObj);
-
-    GLint success;
-    glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        GLchar InfoLog[1024];
-        glGetShaderInfoLog(ShaderObj, sizeof(InfoLog), NULL, InfoLog);
-        fprintf(stderr, "Error compiling shader type %d: '%s'\n", shaderType, InfoLog);
+    Main()
+    {
+        m_pGameCamera = NULL;
+        m_pTexture = NULL;
+        m_pEffect = NULL;
+        m_scale = 0.0f;
+        m_directionalLight.Color = Vector3f(1.0f, 1.0f, 1.0f);
+        m_directionalLight.AmbientIntensity = 0.0f;
+        m_directionalLight.DiffuseIntensity = 0.0f;
+        m_directionalLight.Direction = Vector3f(1.0f, 0.0f, 0.0f);
     }
 
-    glAttachShader(*shaderprog, ShaderObj);
-
-    GLint Success;
-    glGetProgramiv(*shaderprog, GL_LINK_STATUS, &Success);
-    if (Success == 0) {
-        fprintf(stderr, "Error linking shader program\n");
+    ~Main()
+    {
+        delete m_pEffect;
+        delete m_pGameCamera;
+        delete m_pTexture;
     }
 
-    glValidateProgram(*shaderprog);
-}
+    bool Init()
+    {
+        Vector3f Pos(-10.0f, 0.0f, -10.0f);
+        Vector3f Target(1.0f, 0.0f, 1.0f);
+        Vector3f Up(0.0, 1.0f, 0.0f);
+        m_pGameCamera = new Camera(WINDOW_WIDTH, WINDOW_HEIGHT, Pos, Target, Up);
+
+        unsigned int Indices[] = { 0, 2, 1,
+                                   0, 3, 2};
+
+        CreateIndexBuffer(Indices, sizeof(Indices));
+
+        CreateVertexBuffer(Indices, ARRAY_SIZE_IN_ELEMENTS(Indices));
+
+        m_pEffect = new LightingTechnique();
+
+        if (!m_pEffect->Init())
+        {
+            printf("Error initializing the lighting technique\n");
+            return false;
+        }
+
+        m_pEffect->Enable();
+
+        m_pEffect->SetTextureUnit(0);
+
+        m_pTexture = new Texture(GL_TEXTURE_2D, "D:/Program Files/YandexDisk/Sync/YandexDisk/Work/2021-2022/Spring Semester/Graphics/graphics-lab3/Content/test.png");
+
+        if (!m_pTexture->Load()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    void Run()
+    {
+        GLUTBackendRun(this);
+    }
+
+    virtual void RenderSceneCB()
+    {
+        m_pGameCamera->OnRender();
+
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        m_scale += 0.01f;
+
+        SpotLight sl[2];
+        sl[0].DiffuseIntensity = 15.0f;
+        sl[0].Color = Vector3f(1.0f, 1.0f, 0.7f);
+        sl[0].Position = Vector3f(-0.0f, -1.9f, -0.0f);
+        sl[0].Direction = Vector3f(sinf(m_scale), 0.0f, cosf(m_scale));
+        sl[0].Attenuation.Linear = 0.1f;
+        sl[0].Cutoff = 20.0f;
+
+        sl[1].DiffuseIntensity = 5.0f;
+        sl[1].Color = Vector3f(0.0f, 1.0f, 1.0f);
+        sl[1].Position = m_pGameCamera->GetPos();
+        sl[1].Direction = m_pGameCamera->GetTarget();
+        sl[1].Attenuation.Linear = 0.1f;
+        sl[1].Cutoff = 10.0f;
+
+        m_pEffect->SetSpotLights(2, sl);
+
+
+        Pipeline p;
+        p.Rotate(0.0f, 0.0f, 0.0f);
+        p.WorldPos(0.0f, 0.0f, 1.0f);
+        p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
+        p.SetPerspectiveProj(60.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 0.1f, 100.0f);
+        m_pEffect->SetWVP(p.GetWVPTrans());
+        const Matrix4f& WorldTransformation = p.GetWorldTrans();
+        m_pEffect->SetWorldMatrix(WorldTransformation);
+        m_pEffect->SetDirectionalLight(m_directionalLight);
+        m_pEffect->SetEyeWorldPos(m_pGameCamera->GetPos());
+        m_pEffect->SetMatSpecularIntensity(1.0f);
+        m_pEffect->SetMatSpecularPower(32);
+
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*)12);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*)20);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
+        m_pTexture->Bind(GL_TEXTURE0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+
+        glutSwapBuffers();
+    }
+
+    virtual void IdleCB()
+    {
+        RenderSceneCB();
+    }
+
+    virtual void SpecialKeyboardCB(int Key, int x, int y)
+    {
+        m_pGameCamera->OnKeyboard(Key);
+    }
+
+
+    virtual void KeyboardCB(unsigned char Key, int x, int y)
+    {
+        switch (Key) {
+            case 'q':
+                glutLeaveMainLoop();
+                break;
+
+            case 'a':
+                m_directionalLight.AmbientIntensity += 0.05f;
+                break;
+
+            case 's':
+                m_directionalLight.AmbientIntensity -= 0.05f;
+                break;
+
+            case 'z':
+                m_directionalLight.DiffuseIntensity += 0.05f;
+                break;
+
+            case 'x':
+                m_directionalLight.DiffuseIntensity -= 0.05f;
+                break;
+        }
+    }
+
+
+    virtual void PassiveMouseCB(int x, int y)
+    {
+        m_pGameCamera->OnMouse(x, y);
+    }
+
+private:
+
+    void CalcNormals(const unsigned int* pIndices, unsigned int IndexCount,
+        Vertex* pVertices, unsigned int VertexCount){
+        for (unsigned int i = 0; i < IndexCount; i +=3 ){
+            unsigned int Index0 = pIndices[i];
+            unsigned int Index1 = pIndices[i + 1];
+            unsigned int Index2 = pIndices[i + 2];
+            Vector3f v1 = pVertices[Index1].m_pos - pVertices[Index0].m_pos;
+            Vector3f v2 = pVertices[Index2].m_pos - pVertices[Index0].m_pos;
+            Vector3f Normal = v1.Cross(v2);
+            Normal.Normalize();
+
+            pVertices[Index0].m_normal += Normal;
+            pVertices[Index1].m_normal += Normal;
+            pVertices[Index2].m_normal += Normal;
+        }
+
+        for (unsigned int i = 0; i < VertexCount; i++){
+            pVertices[i].m_normal.Normalize();
+        }
+    }
+
+
+    void CreateVertexBuffer(const unsigned int* pIndices, unsigned int IndexCount)
+    {
+        Vertex Vertices[4] = { Vertex(Vector3f(-10.0f, -2.0f, -10.0f), Vector2f(0.0f, 0.0f)),
+                               Vertex(Vector3f(10.0f, -2.0f, -10.0f), Vector2f(1.0f, 0.0f)),
+                               Vertex(Vector3f(10.0f, -2.0f, 10.0f), Vector2f(1.0f, 1.0f)),
+                               Vertex(Vector3f(-10.0f, -2.0f, 10.0f), Vector2f(0.0f, 1.0f))};
+
+        unsigned int VertexCount = ARRAY_SIZE_IN_ELEMENTS(Vertices);
+
+        CalcNormals(pIndices, IndexCount, Vertices, VertexCount);
+
+        glGenBuffers(1, &m_VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+    }
+
+    void CreateIndexBuffer(const unsigned int* pIndices, unsigned int SizeInBytes)
+    {
+        glGenBuffers(1, &m_IBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, SizeInBytes, pIndices, GL_STATIC_DRAW);
+    }
+
+
+    GLuint m_VBO;
+    GLuint m_IBO;
+    LightingTechnique* m_pEffect;
+    Texture* m_pTexture;
+    Camera* m_pGameCamera;
+    float m_scale;
+    DirectionalLight m_directionalLight;
+};
+
 
 int main(int argc, char** argv)
 {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+    GLUTBackendInit(argc, argv);
 
-    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    glutInitWindowPosition(100, 100);
-    glutCreateWindow("Laboratory Work 3");
-
-    GLenum res = glewInit();
-    if (res != GLEW_OK) {
-        fprintf(stderr, "Error: '%s'\n", glewGetErrorString(res));
+    if (!GLUTBackendCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, 32, false, "OpenGL tutors")) {
         return 1;
     }
 
-    glutDisplayFunc(renderSceneCB);
-    glutIdleFunc(renderSceneCB);
-
-    glClearColor(0.05f, 0.15f, 0.2f, 0.0f);
-    glFrontFace(GL_CW);
-    glCullFace(GL_BACK);
-    glEnable(GL_CULL_FACE);
-
     Magick::InitializeMagick(nullptr);
 
-    vertex input[4] = {
-        vertex(glm::vec3 {-1.0f, -1.0f, 0.5773f}, glm::vec2 {0.0f, 0.0f}),
-        vertex(glm::vec3 {0.0f, -1.0f, -1.1547}, glm::vec2 {0.5f, 0.0f}),
-        vertex(glm::vec3 {1.0f, -1.0f, 0.5773f}, glm::vec2 {1.0f, 0.0f}),
-        vertex(glm::vec3 {0.0f, 1.0f, 0.0f}, glm::vec2 {0.5f, 1.0f}),
-    };
+    Main* pApp = new Main();
 
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(input), input, GL_STATIC_DRAW);
-
-    unsigned int Indices[] = { 0, 3, 1,
-                       1, 3, 2,
-                       2, 3, 0,
-                       1, 2, 0 };
-
-    glGenBuffers(1, &IBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
-
-    GLuint shaderProgram = glCreateProgram();
-
-    createShader(&shaderProgram, GL_VERTEX_SHADER, pVS);
-    createShader(&shaderProgram, GL_FRAGMENT_SHADER, pFS);
-
-    glLinkProgram(shaderProgram);
-    GLint Success;
-    GLchar* ErrorLog = nullptr;
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &Success);
-    if (Success == 0) {
-        glGetProgramInfoLog(shaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
-        fprintf(stderr, "Error linking shader program: '%s'\n", ErrorLog);
-        return false;
-    }
-
-    glValidateProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_VALIDATE_STATUS, &Success);
-    if (!Success) {
-        glGetProgramInfoLog(shaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
-        fprintf(stderr, "Invalid shader program: '%s'\n", ErrorLog);
-        exit(1);
-    }
-
-    globalLocation = glGetUniformLocation(shaderProgram, "gWorld");
-    globalSampler = glGetUniformLocation(shaderProgram, "gSampler");
-    dirLightColor = glGetUniformLocation(shaderProgram, "gDirectionalLight.Color");
-    dirLightAmbientIntensity = glGetUniformLocation(shaderProgram, "gDirectionalLight.AmbientIntensity");
-
-    glUseProgram(shaderProgram);
-
-    glUniform1i(globalSampler, 0);
-    Magick::InitializeMagick(nullptr);
-
-    texture = new TextureHandler(GL_TEXTURE_2D, "Content/test.png");
-
-    if (!texture->Load()) {
-        std::cout << "error";
+    if (!pApp->Init()) {
         return 1;
     }
 
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClearDepth(1.0f);
-    glFrontFace(GL_CW);
-    glCullFace(GL_BACK);
-    glDisable(GL_DEPTH_TEST);
+    pApp->Run();
 
-    glutMainLoop();
+    delete pApp;
+
     return 0;
 }
