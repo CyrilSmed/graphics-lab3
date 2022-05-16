@@ -77,7 +77,7 @@ public:
 
         m_pEffect->SetTextureUnit(0);
 
-        m_pTexture = new Texture(GL_TEXTURE_2D, "D:/Program Files/YandexDisk/Sync/YandexDisk/Work/2021-2022/Spring Semester/Graphics/graphics-lab3/Content/test.png");
+        m_pTexture = new Texture(GL_TEXTURE_2D, "Content/test.png");
 
         if (!m_pTexture->Load()) {
             return false;
@@ -100,22 +100,21 @@ public:
         m_scale += 0.01f;
 
         SpotLight sl[2];
-        sl[0].DiffuseIntensity = 15.0f;
-        sl[0].Color = Vector3f(1.0f, 1.0f, 0.7f);
+        sl[0].DiffuseIntensity = 20.0f;
+        sl[0].Color = Vector3f(0.9f, 1.0f, 1.0f);
         sl[0].Position = Vector3f(-0.0f, -1.9f, -0.0f);
         sl[0].Direction = Vector3f(sinf(m_scale), 0.0f, cosf(m_scale));
         sl[0].Attenuation.Linear = 0.1f;
         sl[0].Cutoff = 20.0f;
 
         sl[1].DiffuseIntensity = 5.0f;
-        sl[1].Color = Vector3f(0.0f, 1.0f, 1.0f);
+        sl[1].Color = Vector3f(0.4f, 1.0f, 1.0f);
         sl[1].Position = m_pGameCamera->GetPos();
         sl[1].Direction = m_pGameCamera->GetTarget();
         sl[1].Attenuation.Linear = 0.1f;
         sl[1].Cutoff = 10.0f;
 
         m_pEffect->SetSpotLights(2, sl);
-
 
         Pipeline p;
         p.Rotate(0.0f, 0.0f, 0.0f);
